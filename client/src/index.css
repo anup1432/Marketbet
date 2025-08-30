@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
@@ -5,46 +6,38 @@
 @tailwind utilities;
 
 :root {
-  --background: hsl(0, 0%, 0%); /* Background set to black */
-  --foreground: hsl(0, 0%, 98%);  /* Light text color */
-  --card: hsl(0, 0%, 3%);
-  --card-foreground: hsl(0, 0%, 98%);
-  --popover: hsl(0, 0%, 3%);
-  --popover-foreground: hsl(0, 0%, 98%);
-  --primary: hsl(210, 100%, 60%);
-  --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(0, 0%, 8%);
-  --secondary-foreground: hsl(0, 0%, 90%);
-  --muted: hsl(0, 0%, 10%);
-  --muted-foreground: hsl(0, 0%, 70%);
-  --accent: hsl(0, 0%, 12%);
-  --accent-foreground: hsl(0, 0%, 95%);
-  --destructive: hsl(0, 84%, 60%);
-  --destructive-foreground: hsl(0, 0%, 98%);
-  --border: hsl(0, 0%, 15%);
-  --input: hsl(0, 0%, 8%);
-  --ring: hsl(210, 100%, 60%);
-  --chart-1: hsl(120, 100%, 50%);
-  --chart-2: hsl(0, 100%, 60%);
-  --chart-3: hsl(45, 100%, 60%);
-  --chart-4: hsl(210, 100%, 56%);
-  --chart-5: hsl(280, 100%, 70%);
-  --radius: 12px;
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: 'JetBrains Mono', Menlo, monospace;
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 221.2 83.2% 53.3%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222.2 84% 4.9%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222.2 84% 4.9%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 221.2 83.2% 53.3%;
+  --chart-1: 142 76% 36%;
+  --chart-2: 346 87% 43%;
+  --chart-3: 47 96% 53%;
+  --chart-4: 217 91% 60%;
+  --chart-5: 280 100% 70%;
+  --radius: 0.5rem;
 }
 
 .dark {
-  /* Specific dark theme settings, if needed */
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground font-sans antialiased; /* Using CSS variables for theming */
-  }
-}
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 8%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 8%;
+  --popover-foreground: 210 40% 98%;
+  
