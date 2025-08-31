@@ -12,9 +12,9 @@ const walletAddresses = {
 };
 
 // Get wallet address for network
-router.get("/:network", async (req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const network = req.params.network;
+    const network = req.query.network;
     const address = walletAddresses[network];
 
     if (!address) {
