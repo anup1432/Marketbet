@@ -39,13 +39,14 @@ app.use((req, res, next) => {
 
 (async () => {
   // MongoDB connection
-  const mongoURL = 'mongodb+srv://anup1432:%40nup1432@betwin-cluster.ubok6wv.mongodb.net/betwin?retryWrites=true&w=majority&appName=betwin-cluster';
+  const mongoURL = process.env.MONGODB_URI || 'mongodb+srv://anup1432:%40nup1432@betwin-cluster.ubok6wv.mongodb.net/betwin?retryWrites=true&w=majority&appName=betwin-cluster';
   
   try {
     await mongoose.connect(mongoURL);
     log('MongoDB connected successfully');
   } catch (err) {
     log('MongoDB connection error:', err);
+    process.exit(1);
   }
 
   const server = await registerRoutes(app);
