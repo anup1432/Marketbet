@@ -124,7 +124,7 @@ export default function TradingPage() {
 
   const handlePlaceBet = (side: string, amount: number) => {
     if (!game) return;
-    
+
     placeBetMutation.mutate({
       side,
       amount: amount.toString(),
@@ -134,7 +134,7 @@ export default function TradingPage() {
 
   const handleDeposit = () => {
     if (!depositAmount || !walletAddress?.address) return;
-    
+
     depositMutation.mutate({
       amount: depositAmount,
       network: depositNetwork,
@@ -144,7 +144,7 @@ export default function TradingPage() {
 
   const handleWithdraw = () => {
     if (!withdrawAmount || !withdrawAddress) return;
-    
+
     withdrawMutation.mutate({
       amount: withdrawAmount,
       network: withdrawNetwork,
@@ -157,34 +157,33 @@ export default function TradingPage() {
   const downBets = bets.filter((bet: any) => bet.side === "down");
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-black dark">
       {/* Header */}
-      <header className="bg-card border-b border-border p-4">
+      <header className="bg-black border-b border-gray-800 p-4 shadow-2xl">
         <div className="max-w-md mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-primary" data-testid="app-title">Betwin</h1>
-              <p className="text-sm text-muted-foreground">Real Cash</p>
+              <h1 className="text-3xl font-bold text-white tracking-tight" data-testid="app-title">Betwin</h1>
+              <p className="text-sm text-gray-400 font-medium">Professional Trading Platform</p>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">Balance</div>
-              <div className="text-lg font-semibold" data-testid="user-balance">
+            <div className="text-right bg-gray-900/80 px-4 py-2 rounded-lg border border-gray-700">
+              <div className="text-sm text-gray-400">Balance</div>
+              <div className="text-xl font-bold text-blue-400" data-testid="user-balance">
                 ${user?.balance || "0.00"}
               </div>
             </div>
           </div>
-          
+
           <div className="flex gap-3">
             <Button 
-              className="flex-1 bg-primary hover:bg-primary/90"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
               onClick={() => setShowDepositModal(true)}
               data-testid="button-deposit"
             >
               Deposit
             </Button>
             <Button 
-              variant="destructive" 
-              className="flex-1"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold"
               onClick={() => setShowWithdrawModal(true)}
               data-testid="button-withdraw"
             >
@@ -197,18 +196,23 @@ export default function TradingPage() {
       {/* Main Content */}
       <main className="max-w-md mx-auto p-4 space-y-6">
         {/* Asset Info */}
-        <Card>
-          <CardContent className="p-4">
+        <Card className="bg-gradient-to-r from-card to-secondary/30 border-2 border-primary/20">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-orange-500 text-lg">₿</span>
-                <span className="font-semibold">BTC/USDT</span>
-                <span className="text-sm text-muted-foreground">5s</span>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
+                  <span className="text-orange-400 text-xl font-bold">₿</span>
+                </div>
+                <div>
+                  <span className="font-bold text-lg">BTC/USDT</span>
+                  <div className="text-sm text-muted-foreground">5s intervals</div>
+                </div>
               </div>
               <div className="text-right">
-                <div className="text-xl font-bold" data-testid="current-price">
+                <div className="text-2xl font-bold text-primary" data-testid="current-price">
                   ${priceHistory[priceHistory.length - 1]?.price || "117,650.00"}
                 </div>
+                <div className="text-sm text-green-400">+2.34%</div>
               </div>
             </div>
           </CardContent>
@@ -220,19 +224,19 @@ export default function TradingPage() {
             <div className="flex justify-between items-center mb-4">
               <div className="text-center">
                 <div className="text-sm text-muted-foreground">Up Wins</div>
-                <div className="text-green-500 font-semibold">$1.00</div>
-                <div className="text-xs text-green-500">206.36%</div>
+                <div className="text-green-400 font-semibold">$1.00</div>
+                <div className="text-xs text-green-400">130%</div>
               </div>
-              
+
               <Timer game={game} />
-              
+
               <div className="text-center">
                 <div className="text-sm text-muted-foreground">Down Wins</div>
-                <div className="text-red-500 font-semibold">$1.00</div>
-                <div className="text-xs text-red-500">192.1%</div>
+                <div className="text-red-400 font-semibold">$1.00</div>
+                <div className="text-xs text-red-400">130%</div>
               </div>
             </div>
-            
+
             <div className="text-center">
               <div className="text-sm text-muted-foreground" data-testid="game-status">
                 {game?.phase === "betting" ? "Place your bets" : "Calculating result..."}
@@ -288,7 +292,7 @@ export default function TradingPage() {
                   <div className="text-right">
                     <div className="text-sm font-medium">${bet.amount}</div>
                     <div className={`text-xs ${bet.isWin ? "text-green-500" : "text-red-500"}`}>
-                      {bet.isWin ? `+$${bet.winAmount}` : "Loss"}
+                      {bet.isWin ? `+$${bet.winAmount}` : `-$${bet.amount}`}
                     </div>
                   </div>
                 </div>
@@ -322,7 +326,7 @@ export default function TradingPage() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label>Amount (USDT)</Label>
               <Input
@@ -333,7 +337,7 @@ export default function TradingPage() {
                 data-testid="input-deposit-amount"
               />
             </div>
-            
+
             <div>
               <Label>Wallet Address</Label>
               <div className="p-3 bg-secondary rounded-lg">
@@ -351,11 +355,11 @@ export default function TradingPage() {
                 </Button>
               </div>
             </div>
-            
+
             <div className="text-xs text-muted-foreground">
               Send USDT to the address above. Your balance will be updated after admin confirmation.
             </div>
-            
+
             <Button 
               onClick={handleDeposit}
               disabled={!depositAmount || depositMutation.isPending}
@@ -383,7 +387,7 @@ export default function TradingPage() {
                 data-testid="input-withdraw-amount"
               />
             </div>
-            
+
             <div>
               <Label>Your Wallet Address</Label>
               <Input
@@ -393,7 +397,7 @@ export default function TradingPage() {
                 data-testid="input-withdraw-address"
               />
             </div>
-            
+
             <div>
               <Label>Select Network</Label>
               <Select value={withdrawNetwork} onValueChange={setWithdrawNetwork}>
@@ -408,11 +412,11 @@ export default function TradingPage() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="text-xs text-muted-foreground">
               Minimum withdrawal: $10 USDT. Processing time: 1-24 hours.
             </div>
-            
+
             <Button
               onClick={handleWithdraw}
               disabled={!withdrawAmount || !withdrawAddress || withdrawMutation.isPending}
@@ -427,4 +431,4 @@ export default function TradingPage() {
       </Modal>
     </div>
   );
-}
+              }
