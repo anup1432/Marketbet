@@ -1,14 +1,15 @@
-
 import express from "express";
 import User from "../models/User.js";
 import Transaction from "../models/Transaction.js";
 
 const router = express.Router();
 
-// Get pending transactions
+/**
+ * GET - Pending Transactions
+ */
 router.get("/transactions", async (req, res) => {
   try {
-    const transactions = await Transaction.find({ status: 'pending' }).sort({ createdAt: -1 });
+    const transactions = await Transaction.find({ status: "pending" }).sort({ createdAt: -1 });
     res.json(transactions);
   } catch (error) {
     console.error("Error getting admin transactions:", error);
@@ -16,7 +17,9 @@ router.get("/transactions", async (req, res) => {
   }
 });
 
-// Get all users
+/**
+ * GET - All Users
+ */
 router.get("/users", async (req, res) => {
   try {
     const users = await User.find().sort({ createdAt: -1 });
@@ -27,7 +30,9 @@ router.get("/users", async (req, res) => {
   }
 });
 
-// Get recent activity
+/**
+ * GET - Recent Activity (last 4 transactions)
+ */
 router.get("/recent-activity", async (req, res) => {
   try {
     const recentTransactions = await Transaction.find()
@@ -40,43 +45,54 @@ router.get("/recent-activity", async (req, res) => {
   }
 });
 
-// Update transaction status
+/**
+ * PATCH - Update Transaction Status
+ */
 router.patch("/transactions/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
+    // validate status
     if (!["approved", "rejected"].includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    const transaction = await Transaction.findByIdAndUpdate(id, { status }, { new: true });
+    const transaction = await Transaction.findById(id);
     if (!transaction) {
       return res.status(404).json({ message: "Transaction not found" });
     }
 
-    // If deposit approved, add to user balance
+    // Prevent double approval/rejection
+    if (transaction.status !== "pending") {
+      return res.status(400).json({ message: "Transaction already processed" });
+    }
+
+    transaction.status = status;
+    await transaction.save();
+
+    // Deposit -> Approve = Add balance
     if (transaction.type === "deposit" && status === "approved") {
       const user = await User.findOne({ userId: transaction.userId });
       if (user) {
         user.balance += transaction.amount;
         await user.save();
-        console.log(`Deposit approved: Added ${transaction.amount} to user ${user.userId}, new balance: ${user.balance}`);
+        console.log(`✅ Deposit approved: Added ${transaction.amount} to user ${user.userId}, balance: ${user.balance}`);
       }
     }
 
-    // If withdrawal approved, deduct from user balance (already deducted when request was made)
+    // Withdraw -> Approve = Already deducted in request
     if (transaction.type === "withdraw" && status === "approved") {
-      console.log(`Withdrawal approved: ${transaction.amount} for user ${transaction.userId}`);
+      console.log(`✅ Withdrawal approved: ${transaction.amount} for user ${transaction.userId}`);
     }
 
-    // If withdrawal rejected, add amount back to user balance
+    // Withdraw -> Reject = Return balance
     if (transaction.type === "withdraw" && status === "rejected") {
       const user = await User.findOne({ userId: transaction.userId });
       if (user) {
         user.balance += transaction.amount;
         await user.save();
-        console.log(`Withdrawal rejected: Added back ${transaction.amount} to user ${user.userId}, new balance: ${user.balance}`);
+        console.log(`❌ Withdrawal rejected: Returned ${transaction.amount} to user ${user.userId}, balance: ${user.balance}`);
       }
     }
 
