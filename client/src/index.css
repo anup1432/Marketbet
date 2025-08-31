@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
@@ -39,4 +40,165 @@
   --card-foreground: 210 40% 98%;
   --popover: 222.2 84% 8%;
   --popover-foreground: 210 40% 98%;
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 84% 4.9%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 50.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 224.3 76.3% 94.1%;
+  --chart-1: 142 70% 45%;
+  --chart-2: 346 80% 55%;
+  --chart-3: 47 90% 60%;
+  --chart-4: 217 85% 65%;
+  --chart-5: 280 90% 75%;
 }
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+@layer components {
+  .btn-professional {
+    @apply transition-all duration-200 ease-in-out hover:scale-105 active:scale-95;
+  }
+
+  .card-professional {
+    @apply bg-card/95 backdrop-blur-sm border border-border/50 shadow-lg;
+  }
+
+  /* Chart styling for dark theme */
+  .recharts-cartesian-grid line {
+    stroke: hsl(var(--border));
+    opacity: 0.5;
+  }
+
+  .recharts-text {
+    fill: hsl(var(--muted-foreground));
+  }
+
+  .recharts-tooltip-wrapper {
+    background: hsl(var(--card)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+  }
+
+  /* Professional button styles */
+  .btn-up {
+    @apply bg-green-600 hover:bg-green-500 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg;
+  }
+
+  .btn-down {
+    @apply bg-red-600 hover:bg-red-500 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg;
+  }
+
+  /* Timer styles */
+  .timer-betting {
+    @apply text-emerald-400 font-bold text-xl bg-emerald-950/30 px-4 py-2 rounded-lg border border-emerald-800/50;
+  }
+
+  .timer-result {
+    @apply text-amber-400 font-bold text-xl bg-amber-950/30 px-4 py-2 rounded-lg border border-amber-800/50;
+  }
+
+  /* Price display */
+  .price-up {
+    @apply text-emerald-400 font-bold text-2xl;
+  }
+
+  .price-down {
+    @apply text-red-400 font-bold text-2xl;
+  }
+
+  .price-neutral {
+    @apply text-blue-400 font-bold text-2xl;
+  }
+
+  /* Professional form inputs */
+  .form-input {
+    @apply bg-input border-border text-foreground placeholder:text-muted-foreground rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary focus:border-transparent transition-all;
+  }
+
+  /* Status badges */
+  .status-pending {
+    @apply bg-yellow-950/30 text-yellow-200 border border-yellow-800/50 px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .status-approved {
+    @apply bg-green-950/30 text-green-200 border border-green-800/50 px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .status-rejected {
+    @apply bg-red-950/30 text-red-200 border border-red-800/50 px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  /* Navigation styling */
+  .nav-link {
+    @apply text-muted-foreground hover:text-foreground transition-colors duration-200 font-medium;
+  }
+
+  .nav-link-active {
+    @apply text-primary font-semibold;
+  }
+
+  /* Game area styling */
+  .game-container {
+    @apply bg-card/50 backdrop-blur-sm border border-border/30 rounded-xl p-6 shadow-xl;
+  }
+
+  /* Player list styling */
+  .player-item {
+    @apply flex justify-between items-center py-2 px-4 bg-muted/30 rounded-lg border border-border/20;
+  }
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--accent));
+}
+
+/* Smooth animations */
+* {
+  @apply scroll-smooth;
+}
+
+/* Focus styles for accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+    }
+    
