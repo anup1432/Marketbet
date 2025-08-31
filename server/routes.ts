@@ -5,6 +5,7 @@ import { insertBetSchema, insertTransactionSchema, insertGameSchema, insertPrice
 import { z } from "zod";
 import User from "./models/User.js";
 import Transaction from "./models/Transaction.js";
+import express from "express";
 
 // Bot names for generating realistic players
 const botNames = [
@@ -50,7 +51,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/user/current", async (req, res) => {
     try {
       const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
-      
+
       // Check if user exists, if not create new user
       let user = await User.findOne({ ipAddress });
       if (!user) {
