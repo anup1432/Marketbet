@@ -1,3 +1,4 @@
+
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -43,6 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(game);
       }
     } catch (error) {
+      console.error("Error getting current game:", error);
       res.status(500).json({ message: "Failed to get current game" });
     }
   });
@@ -67,6 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: user.userId
       });
     } catch (error) {
+      console.error("Error getting user:", error);
       res.status(500).json({ message: "Failed to get user" });
     }
   });
@@ -108,6 +111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(bet);
     } catch (error) {
+      console.error("Error placing bet:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid bet data", errors: error.errors });
       }
@@ -126,6 +130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bets = await storage.getBetsByGame(game.id);
       res.json(bets);
     } catch (error) {
+      console.error("Error getting current bets:", error);
       res.status(500).json({ message: "Failed to get bets" });
     }
   });
@@ -133,14 +138,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user bet history
   app.get("/api/bets/history", async (req, res) => {
     try {
-      const user = await await storage.getUserByUsername("player1");
+      const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
+      const user = await User.findOne({ ipAddress });
+      
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        return res.json([]);
       }
 
-      const bets = await storage.getBetsByUser(user.id);
+      const bets = await storage.getBetsByUser(user.userId);
       res.json(bets);
     } catch (error) {
+      console.error("Error getting bet history:", error);
       res.status(500).json({ message: "Failed to get bet history" });
     }
   });
@@ -152,6 +160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const priceHistory = await storage.getRecentPriceHistory(limit);
       res.json(priceHistory);
     } catch (error) {
+      console.error("Error getting price history:", error);
       res.status(500).json({ message: "Failed to get price history" });
     }
   });
@@ -160,6 +169,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/transactions/deposit", async (req, res) => {
     try {
       const { amount, network, address } = req.body;
+      
+      // Validate required fields
+      if (!amount || !network || !address) {
+        return res.status(400).json({ message: "Amount, network, and address are required" });
+      }
+
+      const parsedAmount = parseFloat(amount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        return res.status(400).json({ message: "Invalid amount" });
+      }
+
+      if (!["trc20", "polygon", "ton", "bep20"].includes(network)) {
+        return res.status(400).json({ message: "Invalid network" });
+      }
+
       const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
 
       // Check if user exists, if not create new user
@@ -173,15 +197,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const transaction = new Transaction({
         userId: user.userId,
         type: 'deposit',
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         network,
         address,
         status: 'pending'
       });
 
       await transaction.save();
+      console.log("Deposit transaction created:", transaction);
       res.json(transaction);
     } catch (error) {
+      console.error("Error creating deposit:", error);
       res.status(500).json({ message: "Failed to create deposit request" });
     }
   });
@@ -190,6 +216,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/transactions/withdraw", async (req, res) => {
     try {
       const { amount, network, address } = req.body;
+      
+      // Validate required fields
+      if (!amount || !network || !address) {
+        return res.status(400).json({ message: "Amount, network, and address are required" });
+      }
+
+      const withdrawAmount = parseFloat(amount);
+      if (isNaN(withdrawAmount) || withdrawAmount <= 0) {
+        return res.status(400).json({ message: "Invalid amount" });
+      }
+
+      if (!["trc20", "polygon", "ton", "bep20"].includes(network)) {
+        return res.status(400).json({ message: "Invalid network" });
+      }
+
       const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
 
       // Check if user exists
@@ -198,7 +239,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const withdrawAmount = parseFloat(amount);
       if (user.balance < withdrawAmount) {
         return res.status(400).json({ message: "Insufficient balance" });
       }
@@ -213,8 +253,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       await transaction.save();
+      console.log("Withdrawal transaction created:", transaction);
       res.json(transaction);
     } catch (error) {
+      console.error("Error creating withdrawal:", error);
       res.status(500).json({ message: "Failed to create withdrawal request" });
     }
   });
@@ -231,6 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ address });
     } catch (error) {
+      console.error("Error getting wallet address:", error);
       res.status(500).json({ message: "Failed to get wallet address" });
     }
   });
@@ -241,6 +284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const transactions = await Transaction.find({ status: 'pending' }).sort({ createdAt: -1 });
       res.json(transactions);
     } catch (error) {
+      console.error("Error getting admin transactions:", error);
       res.status(500).json({ message: "Failed to get pending transactions" });
     }
   });
@@ -251,6 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const users = await User.find().sort({ createdAt: -1 });
       res.json(users);
     } catch (error) {
+      console.error("Error getting users:", error);
       res.status(500).json({ message: "Failed to get users" });
     }
   });
@@ -263,10 +308,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(4);
       res.json(recentTransactions);
     } catch (error) {
+      console.error("Error getting recent activity:", error);
       res.status(500).json({ message: "Failed to get recent activity" });
     }
   });
 
+  // Update transaction status (admin only)
   app.patch("/api/admin/transactions/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -287,20 +334,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (user) {
           user.balance += transaction.amount;
           await user.save();
+          console.log(`Deposit approved: Added ${transaction.amount} to user ${user.userId}, new balance: ${user.balance}`);
         }
       }
 
-      // If withdrawal approved, deduct from user balance
+      // If withdrawal approved, deduct from user balance (already deducted when request was made)
       if (transaction.type === "withdraw" && status === "approved") {
+        console.log(`Withdrawal approved: ${transaction.amount} for user ${transaction.userId}`);
+      }
+
+      // If withdrawal rejected, add amount back to user balance
+      if (transaction.type === "withdraw" && status === "rejected") {
         const user = await User.findOne({ userId: transaction.userId });
         if (user) {
-          user.balance -= transaction.amount;
+          user.balance += transaction.amount;
           await user.save();
+          console.log(`Withdrawal rejected: Added back ${transaction.amount} to user ${user.userId}, new balance: ${user.balance}`);
         }
       }
 
       res.json(transaction);
     } catch (error) {
+      console.error("Error updating transaction:", error);
       res.status(500).json({ message: "Failed to update transaction" });
     }
   });
@@ -343,129 +398,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   async function processGameResult(game: any) {
-    const bets = await storage.getBetsByGame(game.id);
-    const priceHistory = await storage.getRecentPriceHistory(2);
+    try {
+      const bets = await storage.getBetsByGame(game.id);
+      const priceHistory = await storage.getRecentPriceHistory(2);
 
-    if (priceHistory.length < 2) return;
+      if (priceHistory.length < 2) return;
 
-    const startPrice = parseFloat(priceHistory[1].price); // Earlier price
-    const endPrice = parseFloat(priceHistory[0].price);   // Latest price
-    const isUp = endPrice > startPrice;
+      const startPrice = parseFloat(priceHistory[1].price); // Earlier price
+      const endPrice = parseFloat(priceHistory[0].price);   // Latest price
+      const isUp = endPrice > startPrice;
 
-    // Get user bets only (exclude bots)
-    const userBets = bets.filter(bet => !bet.isBot);
-    const upBets = userBets.filter(bet => bet.side === "up");
-    const downBets = userBets.filter(bet => bet.side === "down");
+      // Get user bets only (exclude bots)
+      const userBets = bets.filter(bet => !bet.isBot);
+      const upBets = userBets.filter(bet => bet.side === "up");
+      const downBets = userBets.filter(bet => bet.side === "down");
 
-    // Calculate total amounts for each side
-    const upAmount = upBets.reduce((sum, bet) => sum + parseFloat(bet.amount), 0);
-    const downAmount = downBets.reduce((sum, bet) => sum + parseFloat(bet.amount), 0);
+      // Calculate total amounts for each side
+      const upAmount = upBets.reduce((sum, bet) => sum + parseFloat(bet.amount), 0);
+      const downAmount = downBets.reduce((sum, bet) => sum + parseFloat(bet.amount), 0);
 
-    // Strategic result determination
-    let result: "up" | "down";
+      // Strategic result determination
+      let result: "up" | "down";
 
-    if (upBets.length > 0 && downBets.length > 0) {
-      // User bet on both sides - smaller amount side wins
-      result = upAmount <= downAmount ? "up" : "down";
-    } else if (upBets.length > 0 || downBets.length > 0) {
-      // User bet only one side - 30% win rate (70% loss)
-      const shouldUserWin = Math.random() < 0.30; // 30% win rate
+      if (upBets.length > 0 && downBets.length > 0) {
+        // User bet on both sides - smaller amount side wins
+        result = upAmount <= downAmount ? "up" : "down";
+      } else if (upBets.length > 0 || downBets.length > 0) {
+        // User bet only one side - 30% win rate (70% loss)
+        const shouldUserWin = Math.random() < 0.30; // 30% win rate
 
-      if (upBets.length > 0) {
-        // User only bet UP
-        result = shouldUserWin ? "up" : "down";
-      } else {
-        // User only bet DOWN
-        result = shouldUserWin ? "down" : "up";
-      }
-    } else {
-      // No user bets, use actual price movement
-      result = isUp ? "up" : "down";
-    }
-
-    await storage.updateGame(game.id, {
-      endPrice: endPrice.toFixed(2),
-      result
-    });
-
-    // Process each bet
-    for (const bet of bets) {
-      if (bet.isBot) {
-        // Bot bets - random win/loss for simulation
-        const botWon = Math.random() < 0.45;
-        await storage.updateBet(bet.id, {
-          isWin: botWon && bet.side === result,
-          winAmount: botWon && bet.side === result ? (parseFloat(bet.amount) * 1.9).toFixed(2) : undefined
-        });
-        continue;
-      }
-
-      // User bets - win if prediction matches result
-      const betWon = bet.side === result;
-
-      if (betWon) {
-        const winAmount = parseFloat(bet.amount) * 1.9; // 1.9x payout (5% house edge)
-        await storage.updateBet(bet.id, {
-          isWin: true,
-          winAmount: winAmount.toFixed(2)
-        });
-
-        // Add winnings to user balance
-        if (bet.userId) {
-          const user = await storage.getUser(bet.userId);
-          if (user) {
-            const newBalance = (parseFloat(user.balance) + winAmount).toFixed(2);
-            await storage.updateUserBalance(user.id, newBalance);
-          }
+        if (upBets.length > 0) {
+          // User only bet UP
+          result = shouldUserWin ? "up" : "down";
+        } else {
+          // User only bet DOWN
+          result = shouldUserWin ? "down" : "up";
         }
       } else {
-        await storage.updateBet(bet.id, { isWin: false });
+        // No user bets, use actual price movement
+        result = isUp ? "up" : "down";
       }
+
+      await storage.updateGame(game.id, {
+        endPrice: endPrice.toFixed(2),
+        result
+      });
+
+      // Process each bet
+      for (const bet of bets) {
+        if (bet.isBot) {
+          // Bot bets - random win/loss for simulation
+          const botWon = Math.random() < 0.45;
+          await storage.updateBet(bet.id, {
+            isWin: botWon && bet.side === result,
+            winAmount: botWon && bet.side === result ? (parseFloat(bet.amount) * 1.9).toFixed(2) : undefined
+          });
+          continue;
+        }
+
+        // User bets - win if prediction matches result
+        const betWon = bet.side === result;
+
+        if (betWon) {
+          const winAmount = parseFloat(bet.amount) * 1.9; // 1.9x payout (5% house edge)
+          await storage.updateBet(bet.id, {
+            isWin: true,
+            winAmount: winAmount.toFixed(2)
+          });
+
+          // Add winnings to user balance
+          const user = await User.findOne({ userId: bet.userId });
+          if (user) {
+            user.balance += winAmount;
+            await user.save();
+            console.log(`User ${user.userId} won ${winAmount}, new balance: ${user.balance}`);
+          }
+        } else {
+          await storage.updateBet(bet.id, { isWin: false });
+        }
+      }
+    } catch (error) {
+      console.error("Error processing game result:", error);
     }
   }
 
-
   async function startNewGame() {
-    const priceHistory = await storage.getRecentPriceHistory(1);
-    const currentPrice = priceHistory.length > 0 ? priceHistory[0].price : "117650.00";
+    try {
+      const priceHistory = await storage.getRecentPriceHistory(1);
+      const currentPrice = priceHistory.length > 0 ? priceHistory[0].price : "117650.00";
 
-    const newGame = await storage.createGame({
-      startPrice: currentPrice,
-      phase: "betting",
-      timeRemaining: 20
-    });
+      const newGame = await storage.createGame({
+        startPrice: currentPrice,
+        phase: "betting",
+        timeRemaining: 20
+      });
 
-    // Generate bot bets
-    await generateBotBets(newGame.id);
+      // Generate bot bets
+      await generateBotBets(newGame.id);
+    } catch (error) {
+      console.error("Error starting new game:", error);
+    }
   }
 
   async function generateBotBets(gameId: string) {
-    const numBots = Math.floor(Math.random() * 20) + 15; // 15-35 bots
+    try {
+      const numBots = Math.floor(Math.random() * 20) + 15; // 15-35 bots
 
-    for (let i = 0; i < numBots; i++) {
-      const botName = botNames[Math.floor(Math.random() * botNames.length)];
-      const side = Math.random() > 0.5 ? "up" : "down";
-      const amounts = ["1", "5", "10", "20", "50"];
-      const amount = amounts[Math.floor(Math.random() * amounts.length)];
+      for (let i = 0; i < numBots; i++) {
+        const botName = botNames[Math.floor(Math.random() * botNames.length)];
+        const side = Math.random() > 0.5 ? "up" : "down";
+        const amounts = ["1", "5", "10", "20", "50"];
+        const amount = amounts[Math.floor(Math.random() * amounts.length)];
 
-      await storage.createBet({
-        gameId,
-        side,
-        amount,
-        isBot: true,
-        botName
-      });
+        await storage.createBet({
+          gameId,
+          side,
+          amount,
+          isBot: true,
+          botName
+        });
+      }
+    } catch (error) {
+      console.error("Error generating bot bets:", error);
     }
   }
 
   async function updatePrice() {
-    const priceHistory = await storage.getRecentPriceHistory(1);
-    const currentPrice = priceHistory.length > 0 ? parseFloat(priceHistory[0].price) : 117650;
+    try {
+      const priceHistory = await storage.getRecentPriceHistory(1);
+      const currentPrice = priceHistory.length > 0 ? parseFloat(priceHistory[0].price) : 117650;
 
-    const variation = (Math.random() - 0.5) * 500;
-    const newPrice = Math.max(1000, currentPrice + variation); // Minimum price of $1000
+      const variation = (Math.random() - 0.5) * 500;
+      const newPrice = Math.max(1000, currentPrice + variation); // Minimum price of $1000
 
-    await storage.addPriceHistory({ price: newPrice.toFixed(2) });
+      await storage.addPriceHistory({ price: newPrice.toFixed(2) });
+    } catch (error) {
+      console.error("Error updating price:", error);
+    }
   }
 
   // Initialize game timer
@@ -473,4 +542,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   return httpServer;
-             }
+}
