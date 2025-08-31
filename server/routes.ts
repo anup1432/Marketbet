@@ -15,7 +15,7 @@ const botNames = [
 // Wallet addresses for different networks
 const walletAddresses = {
   trc20: "TWZHqkbbYTnehQ2TxnH4NgNt4crGLNy8Ns",
-  polygon: "0xE1D4b2BEC237AEDDB47da56b82b2f15812e45B44", 
+  polygon: "0xE1D4b2BEC237AEDDB47da56b82b2f15812e45B44",
   ton: "EQAj7vKLbaWjaNbAuAKP1e1HwmdYZ2vJ2xtWU8qq3JafkfxF",
   bep20: "0xE1D4b2BEC237AEDDB47da56b82b2f15812e45B44"
 };
@@ -23,7 +23,7 @@ const walletAddresses = {
 let gameTimer: NodeJS.Timeout | null = null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
+
   // Get current game state
   app.get("/api/game/current", async (req, res) => {
     try {
@@ -61,15 +61,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bets", async (req, res) => {
     try {
       const betData = insertBetSchema.parse(req.body);
+      const betAmount = parseFloat(betData.amount);
+
       const user = await storage.getUserByUsername("player1");
-      
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
       const userBalance = parseFloat(user.balance);
-      const betAmount = parseFloat(betData.amount);
-
       if (userBalance < betAmount) {
         return res.status(400).json({ message: "Insufficient balance" });
       }
@@ -79,6 +78,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Betting not available" });
       }
 
+      // Allow users to bet on both sides - no restriction on existing bets for same game
       // Deduct bet amount from user balance
       await storage.updateUserBalance(user.id, (userBalance - betAmount).toFixed(2));
 
@@ -105,7 +105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!game) {
         return res.json([]);
       }
-      
+
       const bets = await storage.getBetsByGame(game.id);
       res.json(bets);
     } catch (error) {
@@ -116,11 +116,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user bet history
   app.get("/api/bets/history", async (req, res) => {
     try {
-      const user = await storage.getUserByUsername("player1");
+      const user = await await storage.getUserByUsername("player1");
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const bets = await storage.getBetsByUser(user.id);
       res.json(bets);
     } catch (error) {
@@ -146,7 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         type: "deposit"
       });
-      
+
       const user = await storage.getUserByUsername("player1");
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -173,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         type: "withdraw"
       });
-      
+
       const user = await storage.getUserByUsername("player1");
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -205,11 +205,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const network = req.params.network as keyof typeof walletAddresses;
       const address = walletAddresses[network];
-      
+
       if (!address) {
         return res.status(404).json({ message: "Network not supported" });
       }
-      
+
       res.json({ address });
     } catch (error) {
       res.status(500).json({ message: "Failed to get wallet address" });
@@ -230,7 +230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { status } = req.body;
-      
+
       if (!["approved", "rejected"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
@@ -267,7 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Start game timer
   function startGameTimer() {
     if (gameTimer) clearInterval(gameTimer);
-    
+
     gameTimer = setInterval(async () => {
       try {
         const game = await storage.getCurrentGame();
@@ -304,13 +304,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   async function processGameResult(game: any) {
     const bets = await storage.getBetsByGame(game.id);
     const priceHistory = await storage.getRecentPriceHistory(2);
-    
+
     if (priceHistory.length < 2) return;
-    
-    const startPrice = parseFloat(priceHistory[0].price);
-    const endPrice = parseFloat(priceHistory[1].price);
+
+    const startPrice = parseFloat(priceHistory[1].price); // Earlier price
+    const endPrice = parseFloat(priceHistory[0].price);   // Latest price
     const isUp = endPrice > startPrice;
-    const result = isUp ? "up" : "down";
+
+    // Get user bets only (exclude bots)
+    const userBets = bets.filter(bet => !bet.isBot);
+    const upBets = userBets.filter(bet => bet.side === "up");
+    const downBets = userBets.filter(bet => bet.side === "down");
+
+    // Strategic result determination
+    let result: "up" | "down";
+
+    // If user has bets on both sides, use actual price movement
+    if (upBets.length > 0 && downBets.length > 0) {
+      result = isUp ? "up" : "down";
+    } else {
+      // If user only bet one side, make them win 60-70% of the time
+      const shouldUserWin = Math.random() < 0.65; // 65% win rate
+
+      if (upBets.length > 0 && downBets.length === 0) {
+        // User only bet UP
+        result = shouldUserWin ? "up" : "down";
+      } else if (downBets.length > 0 && upBets.length === 0) {
+        // User only bet DOWN  
+        result = shouldUserWin ? "down" : "up";
+      } else {
+        // No user bets, use actual price movement
+        result = isUp ? "up" : "down";
+      }
+    }
 
     await storage.updateGame(game.id, {
       endPrice: endPrice.toFixed(2),
@@ -319,13 +345,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Process each bet
     for (const bet of bets) {
-      if (bet.isBot) continue; // Skip bot bets
-      
-      const userWon = Math.random() < 0.3; // 30% win rate for real users
-      const betWon = userWon && bet.side === result;
-      
+      if (bet.isBot) {
+        // Bot bets - random win/loss for simulation
+        const botWon = Math.random() < 0.45;
+        await storage.updateBet(bet.id, {
+          isWin: botWon && bet.side === result,
+          winAmount: botWon && bet.side === result ? (parseFloat(bet.amount) * 1.9).toFixed(2) : undefined
+        });
+        continue;
+      }
+
+      // User bets - win if prediction matches result
+      const betWon = bet.side === result;
+
       if (betWon) {
-        const winAmount = parseFloat(bet.amount) * 1.9; // 5% fee applied (2.0 - 0.1)
+        const winAmount = parseFloat(bet.amount) * 1.9; // 1.9x payout (5% house edge)
         await storage.updateBet(bet.id, {
           isWin: true,
           winAmount: winAmount.toFixed(2)
@@ -345,6 +379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+
   async function startNewGame() {
     const priceHistory = await storage.getRecentPriceHistory(1);
     const currentPrice = priceHistory.length > 0 ? priceHistory[0].price : "117650.00";
@@ -361,13 +396,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   async function generateBotBets(gameId: string) {
     const numBots = Math.floor(Math.random() * 20) + 15; // 15-35 bots
-    
+
     for (let i = 0; i < numBots; i++) {
       const botName = botNames[Math.floor(Math.random() * botNames.length)];
       const side = Math.random() > 0.5 ? "up" : "down";
       const amounts = ["1", "5", "10", "20", "50"];
       const amount = amounts[Math.floor(Math.random() * amounts.length)];
-      
+
       await storage.createBet({
         gameId,
         side,
@@ -381,10 +416,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   async function updatePrice() {
     const priceHistory = await storage.getRecentPriceHistory(1);
     const currentPrice = priceHistory.length > 0 ? parseFloat(priceHistory[0].price) : 117650;
-    
+
     const variation = (Math.random() - 0.5) * 500;
     const newPrice = Math.max(1000, currentPrice + variation); // Minimum price of $1000
-    
+
     await storage.addPriceHistory({ price: newPrice.toFixed(2) });
   }
 
@@ -393,4 +428,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   return httpServer;
-}
+  }
