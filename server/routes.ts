@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertBetSchema, insertTransactionSchema, insertGameSchema, insertPriceHistorySchema } from "@shared/schema";
 import { z } from "zod";
+import User from "./models/User.js";
+import Transaction from "./models/Transaction.js";
 
 // Bot names for generating realistic players
 const botNames = [
@@ -44,14 +46,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get current user (for demo, we'll use the default user)
+  // Get current user based on IP address
   app.get("/api/user/current", async (req, res) => {
     try {
-      const user = await storage.getUserByUsername("player1");
+      const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
+      
+      // Check if user exists, if not create new user
+      let user = await User.findOne({ ipAddress });
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        const userId = 'user-' + Math.random().toString(36).substr(2, 9);
+        user = new User({ userId, ipAddress });
+        await user.save();
       }
-      res.json(user);
+
+      res.json({
+        id: user._id,
+        username: user.userId,
+        balance: user.balance.toFixed(2),
+        userId: user.userId
+      });
     } catch (error) {
       res.status(500).json({ message: "Failed to get user" });
     }
@@ -62,14 +75,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const betData = insertBetSchema.parse(req.body);
       const betAmount = parseFloat(betData.amount);
+      const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
 
-      const user = await storage.getUserByUsername("player1");
+      // Get user by IP address
+      let user = await User.findOne({ ipAddress });
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        const userId = 'user-' + Math.random().toString(36).substr(2, 9);
+        user = new User({ userId, ipAddress });
+        await user.save();
       }
 
-      const userBalance = parseFloat(user.balance);
-      if (userBalance < betAmount) {
+      if (user.balance < betAmount) {
         return res.status(400).json({ message: "Insufficient balance" });
       }
 
@@ -78,14 +94,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Betting not available" });
       }
 
-      // Allow users to bet on both sides - no restriction on existing bets for same game
       // Deduct bet amount from user balance
-      await storage.updateUserBalance(user.id, (userBalance - betAmount).toFixed(2));
+      user.balance -= betAmount;
+      await user.save();
 
-      // Create bet
+      // Create bet with MongoDB user ID
       const bet = await storage.createBet({
         ...betData,
-        userId: user.id,
+        userId: user.userId,
         gameId: game.id
       });
 
@@ -142,26 +158,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create deposit request
   app.post("/api/transactions/deposit", async (req, res) => {
     try {
-      const transactionData = insertTransactionSchema.parse({
-        ...req.body,
-        type: "deposit"
-      });
+      const { amount, network, address } = req.body;
+      const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
 
-      const user = await storage.getUserByUsername("player1");
+      // Check if user exists, if not create new user
+      let user = await User.findOne({ ipAddress });
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        const userId = 'user-' + Math.random().toString(36).substr(2, 9);
+        user = new User({ userId, ipAddress });
+        await user.save();
       }
 
-      const transaction = await storage.createTransaction({
-        ...transactionData,
-        userId: user.id
+      const transaction = new Transaction({
+        userId: user.userId,
+        type: 'deposit',
+        amount: parseFloat(amount),
+        network,
+        address,
+        status: 'pending'
       });
 
+      await transaction.save();
       res.json(transaction);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid transaction data", errors: error.errors });
-      }
       res.status(500).json({ message: "Failed to create deposit request" });
     }
   });
@@ -169,33 +188,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create withdrawal request
   app.post("/api/transactions/withdraw", async (req, res) => {
     try {
-      const transactionData = insertTransactionSchema.parse({
-        ...req.body,
-        type: "withdraw"
-      });
+      const { amount, network, address } = req.body;
+      const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
 
-      const user = await storage.getUserByUsername("player1");
+      // Check if user exists
+      let user = await User.findOne({ ipAddress });
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const userBalance = parseFloat(user.balance);
-      const withdrawAmount = parseFloat(transactionData.amount);
-
-      if (userBalance < withdrawAmount) {
+      const withdrawAmount = parseFloat(amount);
+      if (user.balance < withdrawAmount) {
         return res.status(400).json({ message: "Insufficient balance" });
       }
 
-      const transaction = await storage.createTransaction({
-        ...transactionData,
-        userId: user.id
+      const transaction = new Transaction({
+        userId: user.userId,
+        type: 'withdraw',
+        amount: withdrawAmount,
+        network,
+        address,
+        status: 'pending'
       });
 
+      await transaction.save();
       res.json(transaction);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid transaction data", errors: error.errors });
-      }
       res.status(500).json({ message: "Failed to create withdrawal request" });
     }
   });
@@ -219,10 +237,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes
   app.get("/api/admin/transactions", async (req, res) => {
     try {
-      const transactions = await storage.getPendingTransactions();
+      const transactions = await Transaction.find({ status: 'pending' }).sort({ createdAt: -1 });
       res.json(transactions);
     } catch (error) {
       res.status(500).json({ message: "Failed to get pending transactions" });
+    }
+  });
+
+  // Get all users for admin panel
+  app.get("/api/admin/users", async (req, res) => {
+    try {
+      const users = await User.find().sort({ createdAt: -1 });
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get users" });
+    }
+  });
+
+  // Get recent transactions for activity feed
+  app.get("/api/admin/recent-activity", async (req, res) => {
+    try {
+      const recentTransactions = await Transaction.find()
+        .sort({ createdAt: -1 })
+        .limit(4);
+      res.json(recentTransactions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get recent activity" });
     }
   });
 
@@ -235,26 +275,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid status" });
       }
 
-      const transaction = await storage.updateTransaction(id, { status });
+      const transaction = await Transaction.findByIdAndUpdate(id, { status }, { new: true });
       if (!transaction) {
         return res.status(404).json({ message: "Transaction not found" });
       }
 
       // If deposit approved, add to user balance
       if (transaction.type === "deposit" && status === "approved") {
-        const user = await storage.getUser(transaction.userId!);
+        const user = await User.findOne({ userId: transaction.userId });
         if (user) {
-          const newBalance = (parseFloat(user.balance) + parseFloat(transaction.amount)).toFixed(2);
-          await storage.updateUserBalance(user.id, newBalance);
+          user.balance += transaction.amount;
+          await user.save();
         }
       }
 
       // If withdrawal approved, deduct from user balance
       if (transaction.type === "withdraw" && status === "approved") {
-        const user = await storage.getUser(transaction.userId!);
+        const user = await User.findOne({ userId: transaction.userId });
         if (user) {
-          const newBalance = (parseFloat(user.balance) - parseFloat(transaction.amount)).toFixed(2);
-          await storage.updateUserBalance(user.id, newBalance);
+          user.balance -= transaction.amount;
+          await user.save();
         }
       }
 
