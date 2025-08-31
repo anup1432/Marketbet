@@ -316,26 +316,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const upBets = userBets.filter(bet => bet.side === "up");
     const downBets = userBets.filter(bet => bet.side === "down");
 
+    // Calculate total amounts for each side
+    const upAmount = upBets.reduce((sum, bet) => sum + parseFloat(bet.amount), 0);
+    const downAmount = downBets.reduce((sum, bet) => sum + parseFloat(bet.amount), 0);
+
     // Strategic result determination
     let result: "up" | "down";
 
-    // If user has bets on both sides, use actual price movement
     if (upBets.length > 0 && downBets.length > 0) {
-      result = isUp ? "up" : "down";
-    } else {
-      // If user only bet one side, make them win 60-70% of the time
-      const shouldUserWin = Math.random() < 0.65; // 65% win rate
+      // User bet on both sides - smaller amount side wins
+      result = upAmount <= downAmount ? "up" : "down";
+    } else if (upBets.length > 0 || downBets.length > 0) {
+      // User bet only one side - 30% win rate (70% loss)
+      const shouldUserWin = Math.random() < 0.30; // 30% win rate
 
-      if (upBets.length > 0 && downBets.length === 0) {
+      if (upBets.length > 0) {
         // User only bet UP
         result = shouldUserWin ? "up" : "down";
-      } else if (downBets.length > 0 && upBets.length === 0) {
-        // User only bet DOWN  
-        result = shouldUserWin ? "down" : "up";
       } else {
-        // No user bets, use actual price movement
-        result = isUp ? "up" : "down";
+        // User only bet DOWN
+        result = shouldUserWin ? "down" : "up";
       }
+    } else {
+      // No user bets, use actual price movement
+      result = isUp ? "up" : "down";
     }
 
     await storage.updateGame(game.id, {
@@ -428,4 +432,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   return httpServer;
-  }
+             }
